@@ -111,11 +111,21 @@ def main():
 
   CheckCall(["git", "checkout", opts.branch], cwd=oxide_dest)
 
-  update_checkout_args = [sys.executable,
-                          os.path.join("tools", "update_checkout.py")]
+  checkout_config = "[DEFAULT]\n"
   if cache_dir:
-    update_checkout_args.extend(["--cache-dir", cache_dir])
-  CheckCall(update_checkout_args, cwd=oxide_dest)
+    checkout_config += "cachedir = %s\n" % cache_dir
+  with open(os.path.join(dest, ".checkout.cfg"), "w") as fd:
+    fd.write(checkout_config)
+
+  CheckCall([sys.executable,
+             os.path.join(oxide_dest, "tools", "update-checkout.py")],
+            cwd=oxide_dest)
+
+  CheckCall(["git", "submodule", "foreach",
+             "git config -f $toplevel/.git/config submodule.$name.ignore all"],
+            os.path.join(dest, "src"))
+  CheckCall(["git", "config", "diff.ignoreSubmodules", "all"],
+            os.path.join(dest, "src"))
 
 if __name__ == "__main__":
   main()
