@@ -51,6 +51,12 @@ def PopulateGitMirror(cachedir, url):
   return CheckOutput(["git_cache.py", "exists",
                       "--cache-dir", cachedir, url]).strip()
 
+def GetDefaultUrl(user_id):
+  if user_id:
+    return "git+ssh://%s@git.launchpad.net/~oxide-developers/oxide/+git/oxide" % user_id
+
+  return "git://git.launchpad.net/~oxide-developers/oxide/+git/oxide"
+
 class Options(OptionParser):
   def __init__(self):
     OptionParser.__init__(self, usage="%prog [options] [destination]")
@@ -58,8 +64,10 @@ class Options(OptionParser):
     self.add_option("-b", "--branch", help="The branch name to check out",
                     default="master")
     self.add_option("-c", "--cache-dir", help="Specify a local mirror")
-    self.add_option("-u", "--url", help="Override the source URL",
-                    default="git://git.launchpad.net/~oxide-developers/oxide/+git/oxide")
+    self.add_option("-u", "--url", help="Override the source URL")
+    self.add_option("--user-id", help="Your Launchpad user ID - use this to "
+                                      "fetch a read/write checkout (committers "
+                                      "only)")
 
 def main():
   o = Options()
@@ -97,16 +105,22 @@ def main():
     sys.exit(1)
 
   clone_args = ["git", "clone"]
-  url = opts.url
+  remote_url = opts.url
 
+  using_default_url = False
+  if not remote_url:
+    using_default_url = True
+    remote_url = GetDefaultUrl(opts.user_id)
+
+  clone_url = remote_url
   if cache_dir:
-    url = PopulateGitMirror(cache_dir, url)
+    clone_url = PopulateGitMirror(cache_dir, remote_url)
     clone_args.append("--shared")
 
   oxide_dest = os.path.join(dest, "src", "oxide")
   os.makedirs(os.path.dirname(oxide_dest))
 
-  clone_args.extend([url, oxide_dest])
+  clone_args.extend([clone_url, oxide_dest])
   CheckCall(clone_args)
 
   CheckCall(["git", "checkout", opts.branch], cwd=oxide_dest)
@@ -114,6 +128,10 @@ def main():
   checkout_config = "[DEFAULT]\n"
   if cache_dir:
     checkout_config += "cachedir = %s\n" % cache_dir
+    if opts.user_id and using_default_url:
+      CheckCall(["git", "remote", "set-url", "--push", "origin", remote_url],
+                oxide_dest)
+
   with open(os.path.join(dest, ".checkout.cfg"), "w") as fd:
     fd.write(checkout_config)
 
