@@ -46,10 +46,19 @@ def IsDepotToolsInPath():
       return True
   return False
 
-def PopulateGitMirror(cachedir, url):
-  CheckCall(["git_cache.py", "populate", "--cache-dir", cachedir, url])
-  return CheckOutput(["git_cache.py", "exists",
+def GclientSupportsCacheMode():
+  try:
+    return CheckOutput(["gclient", "supports-cache-mode"]).strip() == "Yes"
+  except:
+    return False
+
+def GetGitMirrorPath(cachedir, url):
+  return CheckOutput(["git", "cache", "exists",
                       "--cache-dir", cachedir, url]).strip()
+
+def PopulateGitMirror(cachedir, url):
+  CheckCall(["git", "cache", "populate", "--cache-dir", cachedir, url])
+  return GetGitMirrorPath(cachedir, url)
 
 def GetDefaultUrl(user_id):
   if user_id:
@@ -61,10 +70,18 @@ class Options(OptionParser):
   def __init__(self):
     OptionParser.__init__(self, usage="%prog [options] [destination]")
 
-    self.add_option("-b", "--branch", help="The branch name to check out",
+    self.add_option("-b", "--branch", help="The name of the branch to check out",
                     default="master")
-    self.add_option("-c", "--cache-dir", help="Specify a local mirror")
-    self.add_option("-u", "--url", help="Override the source URL")
+    self.add_option("-c", "--cache-dir",
+                    help="Specify a local mirror to clone from")
+    self.add_option("--cache-mode", default="reference",
+                    help="The cache mode (when used with --cache-dir)."
+                         "\"reference\" causes checkouts to be cloned with "
+                         "--reference pointing to the local mirror, but their "
+                         "origin pointing to the remote branch. \"full\" causes "
+                         "checkouts to be cloned from the local mirror with "
+                         "--shared")
+    self.add_option("-u", "--url", help="Override the canonical source URL")
     self.add_option("--user-id", help="Your Launchpad user ID - use this to "
                                       "fetch a read/write checkout (committers "
                                       "only)")
@@ -86,6 +103,29 @@ def main():
     o.print_usage(file=sys.stderr)
     sys.exit(1)
 
+  if opts.cache_mode not in ("full", "reference"):
+    print("Invalid value for --cache-mode", file=sys.stderr)
+    o.print_usage(file=sys.stderr)
+    sys.exit(1)
+
+  if not IsDepotToolsInPath():
+    print("Please check out depot_tools and ensure that it appears in your "
+          "PATH environment variable.", file=sys.stderr)
+    print("depot_tools can be checked out from "
+          "git://git.launchpad.net/~oxide-developers/oxide/+git/depot_tools",
+          file=sys.stderr)
+    sys.exit(1)
+
+  cache_mode = opts.cache_mode
+  cache_mode_supported = GclientSupportsCacheMode()
+  if not cache_mode_supported and cache_mode == "reference":
+    print("WARNING: You are using a version of depot_tools that doesn't "
+          "support cache_mode. Falling back to to --cache-mode=full. "
+          "Did you check out depot_tools from "
+          "git://git.launchpad.net/~oxide-developers/oxide/+git/depot_tools ?",
+          file=sys.stderr)
+    cache_mode = "full"
+
   if not os.path.exists(dest):
     os.makedirs(dest)
 
@@ -97,13 +137,6 @@ def main():
     print("Destination directory exists and is not empty", file=sys.stderr)
     sys.exit(1) 
 
-  if not IsDepotToolsInPath():
-    print("Please check out depot_tools and ensure that it appears in your "
-          "PATH environment variable. "
-          "See https://www.chromium.org/developers/how-tos/install-depot-tools",
-          file=sys.stderr)
-    sys.exit(1)
-
   clone_args = ["git", "clone"]
   remote_url = opts.url
 
@@ -114,8 +147,11 @@ def main():
 
   clone_url = remote_url
   if cache_dir:
-    clone_url = PopulateGitMirror(cache_dir, remote_url)
-    clone_args.append("--shared")
+    if cache_mode == "full":
+      clone_url = PopulateGitMirror(cache_dir, remote_url)
+      clone_args.append("--shared")
+    else:
+      clone_args.extend(["--reference", GetGitMirrorPath(cache_dir, remote_url)])
 
   oxide_dest = os.path.join(dest, "src", "oxide")
   os.makedirs(os.path.dirname(oxide_dest))
@@ -125,15 +161,12 @@ def main():
 
   CheckCall(["git", "checkout", opts.branch], cwd=oxide_dest)
 
-  checkout_config = "[DEFAULT]\n"
   if cache_dir:
-    checkout_config += "cachedir = %s\n" % cache_dir
-    if opts.user_id and using_default_url:
+    CheckCall(["git", "config", "oxide.cacheDir", cache_dir], oxide_dest)
+    CheckCall(["git", "config", "oxide.cacheMode", cache_mode], oxide_dest)
+    if opts.user_id and using_default_url and cache_mode == "full":
       CheckCall(["git", "remote", "set-url", "--push", "origin", remote_url],
                 oxide_dest)
-
-  with open(os.path.join(dest, ".checkout.cfg"), "w") as fd:
-    fd.write(checkout_config)
 
   CheckCall([sys.executable,
              os.path.join(oxide_dest, "tools", "update-checkout.py")],
