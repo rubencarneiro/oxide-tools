@@ -52,13 +52,10 @@ def GclientSupportsCacheMode():
   except:
     return False
 
-def GetGitMirrorPath(cachedir, url):
-  return CheckOutput(["git", "cache", "exists",
-                      "--cache-dir", cachedir, url]).strip()
-
 def PopulateGitMirror(cachedir, url):
   CheckCall(["git", "cache", "populate", "--cache-dir", cachedir, url])
-  return GetGitMirrorPath(cachedir, url)
+  return CheckOutput(["git", "cache", "exists",
+                      "--cache-dir", cachedir, url]).strip()
 
 def GetDefaultUrl(user_id):
   if user_id:
@@ -165,7 +162,7 @@ def main():
       clone_url = PopulateGitMirror(cache_dir, remote_url)
       clone_args.append("--shared")
     else:
-      clone_args.extend(["--reference", GetGitMirrorPath(cache_dir, remote_url)])
+      clone_args.extend(["--reference", PopulateGitMirror(cache_dir, remote_url)])
 
   oxide_dest = os.path.join(dest, "src", "oxide")
   os.makedirs(os.path.dirname(oxide_dest))
