@@ -64,7 +64,7 @@ def GetDefaultUrl(user_id):
   if user_id:
     return "git+ssh://%s@git.launchpad.net/~oxide-developers/oxide/+git/oxide" % user_id
 
-  return "git://git.launchpad.net/~oxide-developers/oxide/+git/oxide"
+  return "https://git.launchpad.net/~oxide-developers/oxide/+git/oxide"
 
 class Options(OptionParser):
   def __init__(self):
@@ -85,8 +85,8 @@ class Options(OptionParser):
                          "repository")
     self.add_option("-u", "--url", help="Override the canonical source URL")
     self.add_option("--user-id", help="Your Launchpad user ID - use this to "
-                                      "fetch a read/write checkout (committers "
-                                      "only)")
+                                      "fetch repositories from Launchpad using "
+                                      "SSH")
 
 def main():
   o = Options()
@@ -110,7 +110,7 @@ def main():
     print("Please check out depot_tools and ensure that it appears in your "
           "PATH environment variable.", file=sys.stderr)
     print("depot_tools can be checked out from "
-          "git://git.launchpad.net/~oxide-developers/oxide/+git/depot_tools. "
+          "https://git.launchpad.net/~oxide-developers/oxide/+git/depot_tools. "
           "See https://wiki.ubuntu.com/Oxide/GetTheCode",
           file=sys.stderr)
     sys.exit(1)
@@ -131,9 +131,8 @@ def main():
 
   user_id = opts.user_id
   if cache_dir and cache_mode == "full" and user_id:
-    print("WARNING: --user-id will be ignored, as it's not compatible with "
-          "--cache-mode=full", file=sys.stderr)
-    user_id = None
+    print("--user-id does not make sense with --cache-mode=full", file=sys.stderr)
+    sys.exit(1)
 
   if not os.path.exists(dest):
     os.makedirs(dest)
