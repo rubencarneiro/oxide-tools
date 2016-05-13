@@ -59,7 +59,7 @@ def PopulateGitMirror(cachedir, url):
 
 def GetDefaultUrl(user_id):
   if user_id:
-    return "git+ssh://%s@git.launchpad.net/~oxide-developers/oxide/+git/oxide" % user_id
+    return "ssh://%s@git.launchpad.net/~oxide-developers/oxide/+git/oxide" % user_id
 
   return "https://git.launchpad.net/~oxide-developers/oxide/+git/oxide"
 
