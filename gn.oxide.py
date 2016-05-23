@@ -1,4 +1,3 @@
-#!/bin/sh
 # Copyright (C) 2016 Canonical Ltd.
 
 # This library is free software; you can redistribute it and/or
@@ -15,4 +14,33 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
-PYTHONDONTWRITEBYTECODE=1 exec python $(dirname "$0")/gn.py "$@"
+from __future__ import print_function
+import os
+import os.path
+import platform
+import subprocess
+import sys
+
+def main(argv):
+  gn_exe = None
+  if platform.system() == "Linux":
+    if platform.machine() == "x86_64":
+      gn_exe = "gn.linux64"
+
+  if not gn_exe:
+    print("*** Cannot run gn - no binary available for platform \"%s/%s\" ***" %
+          (platform.system(), platform.machine()), file=sys.stderr)
+    print("You will need to bootstrap your own gn binary", file=sys.stderr)
+    sys.exit(1)
+
+  gn_path = os.path.join(os.path.dirname(__file__), gn_exe)
+
+  assert os.access(gn_path, os.X_OK)
+
+  args = [gn_path]
+  args.extend(argv)
+
+  return subprocess.call(args)
+
+if __name__ == "__main__":
+  sys.exit(main(sys.argv[1:]))
