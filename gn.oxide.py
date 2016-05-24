@@ -22,18 +22,18 @@ import subprocess
 import sys
 
 def main(argv):
-  gn_exe = None
+  platform_dir = None
   if platform.system() == "Linux":
     if platform.machine() == "x86_64":
-      gn_exe = "gn.linux64"
+      platform_dir = "linux64"
 
-  if not gn_exe:
+  if not platform_dir:
     print("*** Cannot run gn - no binary available for platform \"%s/%s\" ***" %
           (platform.system(), platform.machine()), file=sys.stderr)
     print("You will need to bootstrap your own gn binary", file=sys.stderr)
     sys.exit(1)
 
-  gn_path = os.path.join(os.path.dirname(__file__), gn_exe)
+  gn_path = os.path.join(os.path.dirname(__file__), platform_dir, "gn.oxide")
 
   assert os.access(gn_path, os.X_OK)
 
