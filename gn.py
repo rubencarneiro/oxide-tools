@@ -34,7 +34,7 @@ import sys
 
 GN_EXE = "gn"
 
-def IsInOxideCheckout():
+def MaybeInChromiumCheckout():
   d = os.getcwd()
   while not os.path.isfile(os.path.join(d, ".gclient")):
     p = os.path.dirname(d)
@@ -43,9 +43,9 @@ def IsInOxideCheckout():
     d = p
 
   if os.path.isdir(os.path.join(d, "src", "oxide")):
-    return True
+    return False
 
-  return False
+  return True
 
 def GetOxideGNExePath():
   platform_dir = None
@@ -70,10 +70,10 @@ def GetDepotToolsGNHelperPath():
   raise Exception("No depot_tools checkout found. Is it in your PATH?")
 
 def GetGNExePath():
-  if IsInOxideCheckout():
-    return GetOxideGNExePath()
+  if MaybeInChromiumCheckout():
+    return GetDepotToolsGNHelperPath()
 
-  return GetDepotToolsGNHelperPath()
+  return GetOxideGNExePath()
 
 def main(argv):
   gn_path = GetGNExePath()
