@@ -1,0 +1,25 @@
+#!/usr/bin/python
+
+import os
+from subprocess import call
+
+DIR = os.path.join(os.getenv("HOME"), ".cache/depot_tools")
+
+def IsDepotToolsInPath():
+  paths = os.environ["PATH"]
+  if not paths:
+    paths = "/usr/bin:/bin"
+  for p in paths.split(":"):
+    if os.access(os.path.join(p, "gclient"), os.X_OK):
+      return True
+  return False
+
+if not os.path.exists(DIR):
+  call(["git", "clone", "https://github.com/ubports/depot_tools.git", DIR])
+
+if not IsDepotToolsInPath():
+  os.environ["PATH"] = "%s:%s" % ( os.environ["PATH"], DIR)
+  print "Please add depot_tools to PATH using:"
+  print "export PATH=%s" % os.environ["PATH"]
+else:
+  print "You alredy have depot_tools in your PATH"
