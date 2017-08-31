@@ -57,11 +57,8 @@ def PopulateGitMirror(cachedir, url):
   return CheckOutput(["git", "cache", "exists",
                       "--cache-dir", cachedir, url]).strip()
 
-def GetDefaultUrl(user_id):
-  if user_id:
-    return "ssh://%s@git.launchpad.net/~oxide-developers/oxide/+git/oxide" % user_id
-
-  return "https://git.launchpad.net/~oxide-developers/oxide/+git/oxide"
+def GetDefaultUrl():
+  return "https://github.com/ubports/oxide-tools.git"
 
 class Options(OptionParser):
   def __init__(self):
@@ -81,9 +78,6 @@ class Options(OptionParser):
                          "workflows that involve interacting with the remote "
                          "repository")
     self.add_option("-u", "--url", help="Override the canonical source URL")
-    self.add_option("--user-id", help="Your Launchpad user ID - use this to "
-                                      "fetch repositories from Launchpad using "
-                                      "SSH")
 
 def main():
   o = Options()
@@ -126,11 +120,6 @@ def main():
           file=sys.stderr)
     cache_mode = "full"
 
-  user_id = opts.user_id
-  if cache_dir and cache_mode == "full" and user_id:
-    print("--user-id does not make sense with --cache-mode=full", file=sys.stderr)
-    sys.exit(1)
-
   if not os.path.exists(dest):
     os.makedirs(dest)
 
@@ -140,13 +129,13 @@ def main():
 
   if len(os.listdir(dest)) > 0:
     print("Destination directory exists and is not empty", file=sys.stderr)
-    sys.exit(1) 
+    sys.exit(1)
 
   clone_args = ["git", "clone"]
   remote_url = opts.url
 
   if not remote_url:
-    remote_url = GetDefaultUrl(user_id)
+    remote_url = GetDefaultUrl()
 
   clone_url = remote_url
   if cache_dir:
@@ -171,9 +160,6 @@ def main():
   CheckCall(clone_args)
 
   CheckCall(["git", "checkout", opts.branch], cwd=oxide_dest)
-
-  if user_id:
-    CheckCall(["git", "config", "oxide.launchpadUserId", user_id], oxide_dest)
 
   if cache_dir:
     CheckCall(["git", "config", "oxide.cacheDir", cache_dir], oxide_dest)
